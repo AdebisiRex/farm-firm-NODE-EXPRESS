@@ -1,5 +1,7 @@
 const userModel = require("../models/user.model");
 const { farmModel } = require("../models/farm.model");
+const jwt = require("jsonwebtoken");
+const pigModel = require("../models/pig.model");
 
 const registerUser = (req, res) => {
   console.log(req.body);
@@ -98,4 +100,51 @@ const signin = (req, res) => {
     );
 };
 
-module.exports = { registerUser,signin };
+
+const getDashboard = (req, res)=>{
+  let secret = process.env.JWT_SECRET;
+  let token = req.headers.authorization.split(" ")[1];
+  jwt.verify(token, secret, (err, result) => {
+    if (err) {
+      console.log(err);
+      res.send({ status: false, message: "error" });
+    } else {
+      let { email} = result;
+      userModel.findOne(
+        { email: email },
+        (err, userDetails) => {
+          if (err) {
+            res.send({
+              status: false,
+              message: "There has been an error please try logging in again",
+            });
+          } else {
+
+            farmModel.findOne({_id: userDetails.farmID},(err, farm)=>{
+              if(err){
+                res.send({
+                  status: false,
+                  message: "There has been an error finding farm please try logging in again",
+                });
+              }else{
+                pigModel.find({farmUID: farm._id}, (err, allPigs)=>{
+                  if(err){
+                    res.send({
+                      status: false,
+                      message: "There has been an error finding pigs please try logging in again",
+                    });
+                  }else{
+                    res.send({status:true, message: "All data has been found ", userDetails, farm, allPigs})
+                  }
+                })
+              }
+            })
+            res.send({status:true, message: "User Authenticated Successfully", userDetails })
+          }
+        }
+      );
+    }
+  });
+
+}
+module.exports = { registerUser,signin, getDashboard };
